@@ -1,26 +1,96 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* ─── Brand colors ───────────────────────────────── */
+  --color-primary:            #1B3A5C;
+  --color-primary-dark:       #002444;
+  --color-primary-active:     #152D47;
+  --color-primary-disabled:   #B8C9DC;
+  --color-primary-container:  #1B3A5C;
+
+  /* ─── Text ───────────────────────────────────────── */
+  --color-ink:                #1a1c1e;
+  --color-body:               #3f3f3f;
+  --color-muted:              #43474e;
+  --color-muted-soft:         #73777f;
+
+  /* ─── Surfaces ───────────────────────────────────── */
+  --color-canvas:             #ffffff;
+  --color-surface:            #faf9fc;
+  --color-surface-soft:       #f4f3f6;
+  --color-surface-card:       #ffffff;
+  --color-surface-container:  #eeedf1;
+
+  /* ─── Borders ────────────────────────────────────── */
+  --color-hairline:           #c3c6cf;
+  --color-outline:            #73777f;
+  --color-border-strong:      #43474e;
+
+  /* ─── Semantic ───────────────────────────────────── */
+  --color-error:              #ba1a1a;
+  --color-error-container:    #ffdad6;
+  --color-secondary:          #555f6f;
+  --color-secondary-container:#d6e0f3;
+  --color-on-primary:         #ffffff;
+  --color-on-surface:         #1a1c1e;
+
+  /* ─── Status badge colors ─────────────────────────── */
+  --color-for-sale:           #1B3A5C;
+  --color-sold:               #43474e;
+  --color-pending:            #B45309;
+
+  /* ─── Typography ─────────────────────────────────── */
+  --font-sans: var(--font-inter);
+
+  /* ─── Border radius ──────────────────────────────── */
+  --radius-none:   0px;
+  --radius-xs:     0.25rem;   /* 4px  */
+  --radius-sm:     0.5rem;    /* 8px  — buttons, inputs */
+  --radius-md:     0.75rem;   /* 12px — property cards */
+  --radius-lg:     1rem;      /* 16px */
+  --radius-xl:     1.5rem;    /* 24px */
+  --radius-full:   9999px;    /* pills */
+
+  /* ─── Spacing extras ─────────────────────────────── */
+  --spacing-section:      4rem;    /* 64px — major section padding */
+  --spacing-card-gutter:  1rem;    /* 16px — between cards */
+  --spacing-stack-xs:     0.5rem;  /* 8px  */
+  --spacing-stack-md:     1rem;    /* 16px */
+  --spacing-stack-lg:     1.5rem;  /* 24px */
+  --spacing-max-width:    80rem;   /* 1280px */
+
+  /* ─── Shadow ─────────────────────────────────────── */
+  --shadow-card: 0px 4px 12px rgba(0, 0, 0, 0.05);
+  --shadow-elevated: rgba(0,0,0,0.02) 0 0 0 1px,
+                     rgba(0,0,0,0.04) 0 2px 6px,
+                     rgba(0,0,0,0.1)  0 4px 8px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ─── Base styles ─────────────────────────────────────── */
+:root {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Typography utilities ───────────────────────────── */
+.text-h1    { font-size: 2.5rem;   font-weight: 600; line-height: 1.2;  letter-spacing: -0.02em; }
+.text-h2    { font-size: 2rem;     font-weight: 600; line-height: 1.25; letter-spacing: -0.01em; }
+.text-h3    { font-size: 1.5rem;   font-weight: 600; line-height: 1.3; }
+.text-body-lg { font-size: 1.125rem; font-weight: 400; line-height: 1.55; }
+.text-body-md { font-size: 1rem;     font-weight: 400; line-height: 1.5; }
+.text-body-sm { font-size: 0.875rem; font-weight: 400; line-height: 1.4; }
+.text-label-bold { font-size: 0.875rem; font-weight: 600; line-height: 1.2; }
+.text-caption { font-size: 0.75rem; font-weight: 400; line-height: 1.2; letter-spacing: 0.01em; }
+
+/* ─── Scrollbar ──────────────────────────────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-hairline) transparent;
 }
