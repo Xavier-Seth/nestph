@@ -233,7 +233,22 @@ CREATE POLICY "inquiries: agent update own"
 -- (No INSERT policy = no authenticated client can insert)
 
 -- ============================================================
--- 5. STORAGE BUCKET
+-- 5. TABLE-LEVEL GRANTS
+-- RLS policies filter rows, but Postgres still needs table grants
+-- for the role to touch the table at all.
+-- ============================================================
+
+-- anon (unauthenticated public visitors)
+GRANT SELECT ON public.properties TO anon;
+GRANT SELECT ON public.agents     TO anon;
+
+-- authenticated (logged-in agents / super_admin)
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.properties  TO authenticated;
+GRANT SELECT, UPDATE                  ON public.agents      TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE  ON public.inquiries   TO authenticated;
+
+-- ============================================================
+-- 6. STORAGE BUCKET
 -- Run this separately if the SQL editor can't create buckets.
 -- Alternatively create the bucket via the Supabase dashboard:
 --   Storage → New Bucket → Name: property-images → Public: ON

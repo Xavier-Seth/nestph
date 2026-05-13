@@ -21,20 +21,14 @@ export default async function LoginPage({
     const password = formData.get("password") as string;
 
     const supabase = await createClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (signInError) {
-      redirect("/auth/login?error=invalid_credentials");
-    }
-
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+      error: signInError,
+    } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (!user) redirect("/auth/login?error=invalid_credentials");
+    if (signInError || !user) {
+      redirect("/auth/login?error=invalid_credentials");
+    }
 
     const serviceClient = createServiceClient();
     const { data: agent } = await serviceClient

@@ -90,18 +90,19 @@ export async function updateListing(id: string, formData: FormData) {
   redirect("/dashboard/listings");
 }
 
-export async function deleteListing(id: string) {
+export async function deleteListing(id: string): Promise<{ error?: string; count?: number }> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
 
-  await supabase
+  const { error, count } = await supabase
     .from("properties")
-    .delete()
+    .delete({ count: "exact" })
     .eq("id", id)
     .eq("agent_id", user.id);
 
-  redirect("/dashboard/listings");
+  if (error) return { error: "Failed to delete listing." };
+  return { count: count ?? 0 };
 }
