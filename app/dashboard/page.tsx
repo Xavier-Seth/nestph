@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -13,7 +13,8 @@ export default async function DashboardPage() {
 
   if (!user) redirect("/auth/login");
 
-  const { data: agent } = await supabase
+  const service = createServiceClient();
+  const { data: agent } = await service
     .from("agents")
     .select("id, name, role")
     .eq("id", user.id)

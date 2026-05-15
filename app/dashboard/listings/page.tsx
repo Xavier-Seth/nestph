@@ -3,7 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { deleteListing } from "./actions";
+import { DeleteListingButton } from "@/components/dashboard/DeleteListingButton";
 
 export const metadata: Metadata = { title: "My Listings" };
 
@@ -144,20 +144,7 @@ export default async function ListingsPage() {
                         >
                           Edit
                         </Link>
-                        <form
-                          action={async () => {
-                            "use server";
-                            await deleteListing(p.id);
-                          }}
-                        >
-                          <button
-                            type="submit"
-                            className="text-caption text-error hover:underline"
-                            onClick={() => {}}
-                          >
-                            Delete
-                          </button>
-                        </form>
+                        <DeleteListingButton id={p.id} title={p.title} />
                       </div>
                     </td>
                   </tr>

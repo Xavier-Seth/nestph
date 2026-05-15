@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import type { Agent } from "@/types";
 import { DashboardSignOut } from "@/components/dashboard/DashboardSignOut";
 
@@ -19,7 +19,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   if (!user) redirect("/auth/login");
 
-  const { data: agent } = await supabase
+  const serviceClient = createServiceClient();
+  const { data: agent } = await serviceClient
     .from("agents")
     .select("id, name, email, role, status")
     .eq("id", user.id)

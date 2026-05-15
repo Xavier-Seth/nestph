@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useTransition } from "react";
 import Image from "next/image";
+import { ListingSchema } from "@/lib/validations/listing";
 import type { Property } from "@/types";
 
 const CITIES = ["Cebu City", "Mandaue", "Lapu-Lapu", "Talisay", "Other"];
@@ -18,13 +19,18 @@ interface Props {
   submitLabel?: string;
 }
 
-export function ListingForm({ action, initial, error, submitLabel = "Save Listing" }: Props) {
+export function ListingForm({ action, initial, error: serverError, submitLabel = "Save Listing" }: Props) {
   const [images, setImages] = useState<string[]>(initial?.images ?? []);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [amenities, setAmenities] = useState<string[]>(initial?.amenities ?? []);
   const [amenityInput, setAmenityInput] = useState("");
   const [featured, setFeatured] = useState(initial?.featured ?? false);
+  const [propertyType, setPropertyType] = useState(initial?.property_type ?? "");
+  const [city, setCity] = useState(initial?.city ?? "");
+  const [status, setStatus] = useState(initial?.status ?? "for_sale");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [isPending, startTransition] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -79,20 +85,70 @@ export function ListingForm({ action, initial, error, submitLabel = "Save Listin
     setAmenities((prev) => prev.filter((x) => x !== a));
   }
 
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+
+    const raw = {
+      title: formData.get("title"),
+      description: formData.get("description"),
+      price: formData.get("price"),
+      property_type: propertyType,
+      status,
+      bedrooms: formData.get("bedrooms") || null,
+      bathrooms: formData.get("bathrooms") || null,
+      area_sqft: formData.get("area_sqft") || null,
+      address: formData.get("address"),
+      city,
+      state: formData.get("state"),
+      zip_code: formData.get("zip_code") || null,
+      amenities,
+      images,
+      featured,
+    };
+
+    const parsed = ListingSchema.safeParse(raw);
+    if (!parsed.success) {
+      const errors: Record<string, string> = {};
+      for (const issue of parsed.error.issues) {
+        const key = String(issue.path[0]);
+        if (!errors[key]) errors[key] = issue.message;
+      }
+      setFieldErrors(errors);
+      return;
+    }
+
+    setFieldErrors({});
+    formData.set("property_type", propertyType);
+    formData.set("city", city);
+    formData.set("status", status);
+    formData.set("images", JSON.stringify(images));
+    formData.set("amenities", JSON.stringify(amenities));
+    formData.set("featured", String(featured));
+
+    startTransition(() => {
+      action(formData);
+    });
+  }
+
   const inputClass =
     "h-10 w-full rounded-sm border border-hairline px-3 text-body-md text-ink bg-canvas placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary";
 
+  const fieldError = (key: string) =>
+    fieldErrors[key] ? (
+      <p className="text-caption text-error mt-0.5">{fieldErrors[key]}</p>
+    ) : null;
+
   return (
-    <form action={action} className="space-y-6">
+    <form onSubmit={handleSubmit} noValidate className="space-y-6">
       {/* Hidden fields for complex state */}
       <input type="hidden" name="images" value={JSON.stringify(images)} />
       <input type="hidden" name="amenities" value={JSON.stringify(amenities)} />
       <input type="hidden" name="featured" value={String(featured)} />
 
-      {error && (
+      {serverError && !Object.keys(fieldErrors).length && (
         <div className="px-4 py-3 rounded-sm bg-error/10 border border-error/20 text-body-sm text-error">
-          {error === "validation" && "Please check all required fields."}
-          {error === "db" && "Failed to save. Please try again."}
+          {serverError === "db" && "Failed to save. Please try again."}
         </div>
       )}
 
@@ -152,11 +208,11 @@ export function ListingForm({ action, initial, error, submitLabel = "Save Listin
             id="title"
             name="title"
             type="text"
-            required
             defaultValue={initial?.title}
             placeholder="3BR House in Cebu City near SM"
-            className={inputClass}
+            className={inputClass + (fieldErrors.title ? " border-error" : "")}
           />
+          {fieldError("title")}
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -166,12 +222,12 @@ export function ListingForm({ action, initial, error, submitLabel = "Save Listin
           <textarea
             id="description"
             name="description"
-            required
             rows={5}
             defaultValue={initial?.description}
             placeholder="Describe the property…"
-            className="w-full rounded-sm border border-hairline px-3 py-2.5 text-body-md text-ink bg-canvas placeholder:text-muted resize-vertical focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+            className={"w-full rounded-sm border px-3 py-2.5 text-body-md text-ink bg-canvas placeholder:text-muted resize-vertical focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" + (fieldErrors.description ? " border-error" : " border-hairline")}
           />
+          {fieldError("description")}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -182,15 +238,16 @@ export function ListingForm({ action, initial, error, submitLabel = "Save Listin
             <select
               id="property_type"
               name="property_type"
-              required
-              defaultValue={initial?.property_type ?? ""}
-              className={inputClass + " cursor-pointer"}
+              value={propertyType}
+              onChange={(e) => setPropertyType(e.target.value)}
+              className={inputClass + " cursor-pointer" + (fieldErrors.property_type ? " border-error" : "")}
             >
               <option value="" disabled>Select type</option>
               {PROPERTY_TYPES.map((t) => (
                 <option key={t} value={t} className="capitalize">{t.charAt(0).toUpperCase() + t.slice(1)}</option>
               ))}
             </select>
+            {fieldError("property_type")}
           </div>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="status" className="text-body-sm font-medium text-ink">
@@ -199,8 +256,8 @@ export function ListingForm({ action, initial, error, submitLabel = "Save Listin
             <select
               id="status"
               name="status"
-              required
-              defaultValue={initial?.status ?? "for_sale"}
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
               className={inputClass + " cursor-pointer"}
             >
               <option value="for_sale">For Sale</option>
@@ -218,13 +275,13 @@ export function ListingForm({ action, initial, error, submitLabel = "Save Listin
             id="price"
             name="price"
             type="number"
-            required
             min={0}
             step={1}
             defaultValue={initial?.price}
             placeholder="5000000"
-            className={inputClass}
+            className={inputClass + (fieldErrors.price ? " border-error" : "")}
           />
+          {fieldError("price")}
         </div>
       </section>
 
@@ -282,11 +339,11 @@ export function ListingForm({ action, initial, error, submitLabel = "Save Listin
             id="address"
             name="address"
             type="text"
-            required
             defaultValue={initial?.address}
             placeholder="123 Ayala Ave, Cebu Business Park"
-            className={inputClass}
+            className={inputClass + (fieldErrors.address ? " border-error" : "")}
           />
+          {fieldError("address")}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="flex flex-col gap-1.5">
@@ -296,13 +353,14 @@ export function ListingForm({ action, initial, error, submitLabel = "Save Listin
             <select
               id="city"
               name="city"
-              required
-              defaultValue={initial?.city ?? ""}
-              className={inputClass + " cursor-pointer"}
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              className={inputClass + " cursor-pointer" + (fieldErrors.city ? " border-error" : "")}
             >
               <option value="" disabled>Select city</option>
               {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
+            {fieldError("city")}
           </div>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="state" className="text-body-sm font-medium text-ink">
@@ -312,11 +370,11 @@ export function ListingForm({ action, initial, error, submitLabel = "Save Listin
               id="state"
               name="state"
               type="text"
-              required
               defaultValue={initial?.state ?? "Cebu"}
               placeholder="Cebu"
-              className={inputClass}
+              className={inputClass + (fieldErrors.state ? " border-error" : "")}
             />
+            {fieldError("state")}
           </div>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="zip_code" className="text-body-sm font-medium text-ink">Zip Code</label>
@@ -403,10 +461,10 @@ export function ListingForm({ action, initial, error, submitLabel = "Save Listin
       <div className="pt-2">
         <button
           type="submit"
-          disabled={uploading}
+          disabled={uploading || isPending}
           className="h-11 px-8 rounded-sm bg-primary text-white text-body-sm font-medium hover:bg-primary-dark active:bg-primary-active transition-colors duration-150 disabled:opacity-50"
         >
-          {submitLabel}
+          {isPending ? "Saving…" : submitLabel}
         </button>
       </div>
     </form>
