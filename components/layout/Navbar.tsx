@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { createBrowserClient } from "@supabase/ssr";
 import { createClient } from "@/lib/supabase/client";
 import type { Agent } from "@/types";
 import { cn } from "@/lib/utils";
@@ -19,8 +20,8 @@ export function Navbar() {
   const [agent, setAgent] = useState<AuthAgent>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const pathname = usePathname();
-  const router = useRouter();
 
   // Scroll shadow
   useEffect(() => {
@@ -80,11 +81,17 @@ export function Navbar() {
   const listHref = isApproved ? "/dashboard/listings/new" : "/become-an-agent";
 
   async function handleSignOut() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    setAgent(null);
-    router.push("/");
-    router.refresh();
+    setSigningOut(true);
+    try {
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      await supabase.auth.signOut();
+    } catch {
+      // navigate regardless
+    }
+    window.location.href = "/";
   }
 
   const linkClass = (href: string) =>
@@ -130,9 +137,10 @@ export function Navbar() {
             {agent ? (
               <button
                 onClick={handleSignOut}
-                className="h-9 px-4 rounded-sm text-body-sm font-medium text-body hover:text-ink hover:bg-surface-soft transition-colors duration-150"
+                disabled={signingOut}
+                className="h-9 px-4 rounded-sm text-body-sm font-medium text-body hover:text-ink hover:bg-surface-soft transition-colors duration-150 disabled:opacity-50"
               >
-                Sign Out
+                {signingOut ? "Signing out..." : "Sign Out"}
               </button>
             ) : (
               <Link
@@ -215,9 +223,10 @@ export function Navbar() {
               {agent ? (
                 <button
                   onClick={handleSignOut}
-                  className="text-left px-3 py-3 rounded-sm text-body-md font-medium text-ink hover:bg-surface-soft transition-colors duration-150"
+                  disabled={signingOut}
+                  className="text-left px-3 py-3 rounded-sm text-body-md font-medium text-ink hover:bg-surface-soft transition-colors duration-150 disabled:opacity-50"
                 >
-                  Sign Out
+                  {signingOut ? "Signing out..." : "Sign Out"}
                 </button>
               ) : (
                 <Link
