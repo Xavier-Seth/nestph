@@ -46,22 +46,21 @@ export default async function RegisterPage({
 
     if (data.user && data.session) {
       const serviceClient = createServiceClient();
-      const { data: existing } = await serviceClient
-        .from("agents")
-        .select("id")
-        .eq("id", data.user.id)
-        .single();
-
-      if (!existing) {
-        await serviceClient.from("agents").insert({
+      // Use upsert with ignoreDuplicates to handle the race between this insert
+      // and the handle_new_user DB trigger. The trigger fires synchronously on
+      // auth.users INSERT, so the row usually already exists by this point.
+      // ignoreDuplicates: true means we never overwrite the trigger-set role/status.
+      await serviceClient.from("agents").upsert(
+        {
           id: data.user.id,
           name,
           email,
           phone,
           status: "pending",
           role: "agent",
-        });
-      }
+        },
+        { onConflict: "id", ignoreDuplicates: true }
+      );
       redirect("/dashboard");
     }
 
