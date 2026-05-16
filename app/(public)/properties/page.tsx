@@ -22,6 +22,14 @@ function num(v: string | string[] | undefined): number | undefined {
   return isNaN(n) ? undefined : n;
 }
 
+function float(v: string | string[] | undefined): number | undefined {
+  const s = str(v);
+  const n = s ? parseFloat(s) : NaN;
+  return isNaN(n) ? undefined : n;
+}
+
+const SQM_TO_SQFT = 10.764;
+
 export default async function PropertiesPage({
   searchParams,
 }: {
@@ -37,6 +45,11 @@ export default async function PropertiesPage({
   const bathrooms = num(params.bathrooms);
   const featured = str(params.featured);
   const sort = str(params.sort) ?? "newest";
+  // area_min / area_max are stored in sqm in URL; convert to sqft for DB query
+  const areaMinSqm = float(params.area_min);
+  const areaMaxSqm = float(params.area_max);
+  const areaMinSqft = areaMinSqm != null ? Math.floor(areaMinSqm * SQM_TO_SQFT) : undefined;
+  const areaMaxSqft = areaMaxSqm != null ? Math.ceil(areaMaxSqm * SQM_TO_SQFT) : undefined;
 
   const supabase = await createClient();
 
@@ -53,12 +66,21 @@ export default async function PropertiesPage({
   if (bedrooms != null) query = query.gte("bedrooms", bedrooms);
   if (bathrooms != null) query = query.gte("bathrooms", bathrooms);
   if (featured === "true") query = query.eq("featured", true);
+  if (areaMinSqft != null) query = query.gte("area_sqft", areaMinSqft);
+  if (areaMaxSqft != null) query = query.lte("area_sqft", areaMaxSqft);
 
-  if (sort === "price_high") {
+  if (sort === "oldest") {
+    query = query.order("created_at", { ascending: true });
+  } else if (sort === "price_high") {
     query = query.order("price", { ascending: false });
   } else if (sort === "price_low") {
     query = query.order("price", { ascending: true });
+  } else if (sort === "area_desc") {
+    query = query.order("area_sqft", { ascending: false, nullsFirst: false });
+  } else if (sort === "area_asc") {
+    query = query.order("area_sqft", { ascending: true, nullsFirst: false });
   } else {
+    // default: newest
     query = query.order("created_at", { ascending: false });
   }
 
@@ -72,6 +94,8 @@ export default async function PropertiesPage({
     max_price: maxPrice,
     bedrooms,
     bathrooms,
+    area_min: areaMinSqm,
+    area_max: areaMaxSqm,
     sort,
   };
 

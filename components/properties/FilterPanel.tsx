@@ -15,6 +15,8 @@ interface FilterPanelProps {
     max_price?: number;
     bedrooms?: number;
     bathrooms?: number;
+    area_min?: number;
+    area_max?: number;
     sort?: string;
     view?: string;
   };
@@ -30,6 +32,25 @@ export function FilterPanel({ initialFilters }: FilterPanelProps) {
     initialFilters.max_price ?? MAX_PRICE,
   ]);
 
+  const [areaMin, setAreaMin] = useState(
+    initialFilters.area_min != null ? String(initialFilters.area_min) : ""
+  );
+  const [areaMax, setAreaMax] = useState(
+    initialFilters.area_max != null ? String(initialFilters.area_max) : ""
+  );
+
+  // Count non-default active filters (city excluded — driven by SearchBar)
+  const activeCount = [
+    !!initialFilters.property_type,
+    (initialFilters.min_price ?? 0) > MIN_PRICE,
+    (initialFilters.max_price ?? MAX_PRICE) < MAX_PRICE,
+    !!initialFilters.bedrooms,
+    !!initialFilters.bathrooms,
+    initialFilters.area_min != null,
+    initialFilters.area_max != null,
+    !!initialFilters.sort && initialFilters.sort !== "newest",
+  ].filter(Boolean).length;
+
   function buildParams(overrides: Record<string, string | null>) {
     const current = {
       city: initialFilters.city || null,
@@ -44,6 +65,8 @@ export function FilterPanel({ initialFilters }: FilterPanelProps) {
           : null,
       bedrooms: initialFilters.bedrooms ? String(initialFilters.bedrooms) : null,
       bathrooms: initialFilters.bathrooms ? String(initialFilters.bathrooms) : null,
+      area_min: initialFilters.area_min != null ? String(initialFilters.area_min) : null,
+      area_max: initialFilters.area_max != null ? String(initialFilters.area_max) : null,
       sort: initialFilters.sort || null,
       view: initialFilters.view || null,
     };
@@ -69,6 +92,31 @@ export function FilterPanel({ initialFilters }: FilterPanelProps) {
       max_price: priceRange[1] < MAX_PRICE ? String(priceRange[1]) : null,
     });
   }
+
+  function applyArea() {
+    const minVal = areaMin.trim() ? areaMin.trim() : null;
+    const maxVal = areaMax.trim() ? areaMax.trim() : null;
+    navigate({ area_min: minVal, area_max: maxVal });
+  }
+
+  function clearAll() {
+    setAreaMin("");
+    setAreaMax("");
+    setPriceRange([MIN_PRICE, MAX_PRICE]);
+    navigate({
+      property_type: null,
+      min_price: null,
+      max_price: null,
+      bedrooms: null,
+      bathrooms: null,
+      area_min: null,
+      area_max: null,
+      sort: null,
+    });
+  }
+
+  const inputCls =
+    "h-9 rounded-sm border border-hairline px-3 text-body-sm text-ink bg-canvas placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50";
 
   return (
     <div className="bg-canvas border-b border-hairline sticky top-16 z-40">
@@ -98,11 +146,9 @@ export function FilterPanel({ initialFilters }: FilterPanelProps) {
           {/* Property Type */}
           <select
             value={initialFilters.property_type || ""}
-            onChange={(e) =>
-              navigate({ property_type: e.target.value || null })
-            }
+            onChange={(e) => navigate({ property_type: e.target.value || null })}
             disabled={isPending}
-            className="h-9 rounded-sm border border-hairline px-3 text-body-sm text-ink bg-canvas focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer disabled:opacity-50"
+            className={`${inputCls} cursor-pointer`}
             aria-label="Property type"
           >
             <option value="">All Types</option>
@@ -118,7 +164,7 @@ export function FilterPanel({ initialFilters }: FilterPanelProps) {
             value={initialFilters.bedrooms ? String(initialFilters.bedrooms) : ""}
             onChange={(e) => navigate({ bedrooms: e.target.value || null })}
             disabled={isPending}
-            className="h-9 rounded-sm border border-hairline px-3 text-body-sm text-ink bg-canvas focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer disabled:opacity-50"
+            className={`${inputCls} cursor-pointer`}
             aria-label="Bedrooms"
           >
             <option value="">Any Beds</option>
@@ -134,7 +180,7 @@ export function FilterPanel({ initialFilters }: FilterPanelProps) {
             value={initialFilters.bathrooms ? String(initialFilters.bathrooms) : ""}
             onChange={(e) => navigate({ bathrooms: e.target.value || null })}
             disabled={isPending}
-            className="h-9 rounded-sm border border-hairline px-3 text-body-sm text-ink bg-canvas focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer disabled:opacity-50"
+            className={`${inputCls} cursor-pointer`}
             aria-label="Bathrooms"
           >
             <option value="">Any Baths</option>
@@ -143,18 +189,71 @@ export function FilterPanel({ initialFilters }: FilterPanelProps) {
             <option value="3">3+ Baths</option>
           </select>
 
+          {/* Floor Area */}
+          <div className="flex items-end gap-1.5">
+            <div className="flex flex-col gap-1">
+              <span className="text-caption text-muted font-medium">Floor Area (sqm)</span>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  min={0}
+                  value={areaMin}
+                  onChange={(e) => setAreaMin(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && applyArea()}
+                  disabled={isPending}
+                  placeholder="Any"
+                  aria-label="Minimum floor area in sqm"
+                  className={`${inputCls} w-20`}
+                />
+                <span className="text-caption text-muted">–</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={areaMax}
+                  onChange={(e) => setAreaMax(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && applyArea()}
+                  disabled={isPending}
+                  placeholder="Any"
+                  aria-label="Maximum floor area in sqm"
+                  className={`${inputCls} w-20`}
+                />
+              </div>
+            </div>
+            <button
+              onClick={applyArea}
+              disabled={isPending}
+              className="h-9 px-3 rounded-sm bg-primary text-white text-body-sm font-medium hover:bg-primary-dark disabled:opacity-50 transition-colors duration-150 shrink-0"
+            >
+              Apply
+            </button>
+          </div>
+
+          {/* Clear all — only when filters active */}
+          {activeCount > 0 && (
+            <button
+              onClick={clearAll}
+              disabled={isPending}
+              className="h-9 px-3 rounded-sm border border-hairline text-body-sm text-muted hover:text-ink hover:bg-surface-soft disabled:opacity-50 transition-colors duration-150 shrink-0 whitespace-nowrap"
+            >
+              Filters ({activeCount}) ✕
+            </button>
+          )}
+
           {/* Sort — right-aligned */}
           <div className="ml-auto">
             <select
               value={initialFilters.sort || "newest"}
               onChange={(e) => navigate({ sort: e.target.value })}
               disabled={isPending}
-              className="h-9 rounded-sm border border-hairline px-3 text-body-sm text-ink bg-canvas focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer disabled:opacity-50"
+              className={`${inputCls} cursor-pointer`}
               aria-label="Sort by"
             >
-              <option value="newest">Newest</option>
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
               <option value="price_high">Price: High to Low</option>
               <option value="price_low">Price: Low to High</option>
+              <option value="area_desc">Largest Area</option>
+              <option value="area_asc">Smallest Area</option>
             </select>
           </div>
         </div>
