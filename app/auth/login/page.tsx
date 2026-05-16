@@ -33,10 +33,13 @@ export default async function LoginPage({
     const serviceClient = createServiceClient();
     const { data: agent } = await serviceClient
       .from("agents")
-      .select("role")
+      .select("role, status")
       .eq("id", user.id)
       .single();
 
+    if (agent?.status === "suspended") {
+      redirect("/auth/login?error=suspended");
+    }
     if (agent?.role === "super_admin") {
       redirect("/admin");
     }
@@ -62,6 +65,11 @@ export default async function LoginPage({
         {error === "auth_callback_failed" && (
           <div className="mb-4 px-4 py-3 rounded-sm bg-error/10 border border-error/20 text-body-sm text-error">
             Authentication failed. Please try again.
+          </div>
+        )}
+        {error === "suspended" && (
+          <div className="mb-4 px-4 py-3 rounded-sm bg-error/10 border border-error/20 text-body-sm text-error">
+            Your account has been suspended. Please contact support.
           </div>
         )}
         {message === "registered" && (

@@ -5,12 +5,12 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://nestph.com";
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard";
 
   if (!code) {
-    return NextResponse.redirect(`${origin}/auth/login?error=missing_code`);
+    return NextResponse.redirect(`${appUrl}/auth/login?error=missing_code`);
   }
 
   const cookieStore = await cookies();
@@ -35,32 +35,51 @@ export async function GET(request: NextRequest) {
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
-    return NextResponse.redirect(`${origin}/auth/login?error=auth_callback_failed`);
+    return NextResponse.redirect(`${appUrl}/auth/login?error=auth_callback_failed`);
   }
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (user) {
-    const serviceClient = createServiceClient();
-    const { data: existing } = await serviceClient
-      .from("agents")
-      .select("id")
-      .eq("id", user.id)
-      .single();
+  if (!user) {
+    return NextResponse.redirect(`${appUrl}/auth/login?error=auth_callback_failed`);
+  }
 
-    if (!existing) {
-      await serviceClient.from("agents").insert({
+  const serviceClient = createServiceClient();
+
+  // Ensure agent row exists (handles edge case where trigger didn't fire)
+  const { data: agent } = await serviceClient
+    .from("agents")
+    .select("id, role, status")
+    .eq("id", user.id)
+    .single();
+
+  if (!agent) {
+    await serviceClient.from("agents").upsert(
+      {
         id: user.id,
         name: user.user_metadata?.name ?? user.email?.split("@")[0] ?? "Agent",
         email: user.email!,
         phone: user.user_metadata?.phone ?? null,
         status: "pending",
         role: "agent",
-      });
-    }
+      },
+      { onConflict: "id", ignoreDuplicates: true }
+    );
+    // Pending agent — dashboard layout shows the gate screen
+    return NextResponse.redirect(`${appUrl}/dashboard`);
   }
 
-  return NextResponse.redirect(`${origin}${next}`);
+  // Role-aware redirect
+  if (agent.role === "super_admin") {
+    return NextResponse.redirect(`${appUrl}/admin`);
+  }
+
+  if (agent.status === "suspended") {
+    return NextResponse.redirect(`${appUrl}/auth/login?error=suspended`);
+  }
+
+  // approved or pending — dashboard layout handles the pending gate screen
+  return NextResponse.redirect(`${appUrl}/dashboard`);
 }

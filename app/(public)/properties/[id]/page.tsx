@@ -7,6 +7,9 @@ import { PhotoGallery } from "@/components/properties/PhotoGallery";
 import { MortgageCalculator } from "@/components/properties/MortgageCalculator";
 import { AgentCard } from "@/components/agents/AgentCard";
 import { formatPrice } from "@/lib/utils";
+import { ShareBar } from "@/components/properties/ShareBar";
+import { RecentlyViewed } from "@/components/properties/RecentlyViewed";
+import { SimilarListings } from "@/components/properties/SimilarListings";
 import type { Property } from "@/types";
 
 type Props = { params: Promise<{ id: string }> };
@@ -16,13 +19,32 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("properties")
-    .select("title, description, city")
+    .select("title, description, city, images")
     .eq("id", id)
     .single();
   if (!data) return { title: "Property Not Found" };
+
+  const title = `${data.title} — ${data.city} | NestPH`;
+  const description = (data.description ?? "").slice(0, 160);
+  const url = `https://nestph.com/properties/${id}`;
+  const firstImage = Array.isArray(data.images) && data.images.length > 0 ? data.images[0] : null;
+
   return {
-    title: data.title,
-    description: `${data.title} in ${data.city}. ${data.description?.slice(0, 120) ?? ""}`,
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url,
+      type: "website",
+      ...(firstImage ? { images: [{ url: firstImage }] } : {}),
+    },
+    twitter: {
+      card: firstImage ? "summary_large_image" : "summary",
+      title,
+      description,
+      ...(firstImage ? { images: [firstImage] } : {}),
+    },
   };
 }
 
@@ -71,8 +93,44 @@ export default async function PropertyDetailPage({ params }: Props) {
     commercial: "Commercial",
   };
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "RealEstateListing",
+    name: property.title,
+    description: property.description,
+    url: `https://nestph.com/properties/${property.id}`,
+    price: property.price,
+    priceCurrency: "PHP",
+    numberOfRooms: property.bedrooms,
+    ...(property.area_sqft != null
+      ? {
+          floorSize: {
+            "@type": "QuantitativeValue",
+            value: property.area_sqft,
+            unitCode: "FTK",
+          },
+        }
+      : {}),
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: property.address,
+      addressLocality: property.city,
+      addressCountry: "PH",
+    },
+    image: property.images,
+  };
+
   return (
     <div className="mx-auto max-w-[80rem] px-4 sm:px-6 lg:px-8 py-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(jsonLd)
+            .replace(/</g, "\\u003c")
+            .replace(/>/g, "\\u003e")
+            .replace(/&/g, "\\u0026"),
+        }}
+      />
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1.5 text-body-sm text-muted mb-6 flex-wrap" aria-label="Breadcrumb">
         <Link href="/properties" className="hover:text-ink transition-colors">
@@ -116,6 +174,11 @@ export default async function PropertyDetailPage({ params }: Props) {
               {formatPrice(property.price)}
             </span>
             <span className="text-body-md text-muted">For Sale</span>
+          </div>
+
+          {/* Share */}
+          <div className="mt-4">
+            <ShareBar title={property.title} />
           </div>
 
           {/* Specs grid */}
@@ -187,6 +250,14 @@ export default async function PropertyDetailPage({ params }: Props) {
           </div>
         )}
       </div>
+
+      <SimilarListings
+        currentId={property.id}
+        city={property.city}
+        propertyType={property.property_type}
+        price={property.price}
+      />
+      <RecentlyViewed propertyId={property.id} />
     </div>
   );
 }
