@@ -7,6 +7,7 @@ import { DashboardSignOut } from "@/components/dashboard/DashboardSignOut";
 
 const NAV_ITEMS = [
   { label: "Overview", href: "/dashboard" },
+  { label: "Edit Profile", href: "/dashboard/profile" },
   { label: "My Listings", href: "/dashboard/listings" },
   { label: "Inquiries", href: "/dashboard/inquiries" },
 ];

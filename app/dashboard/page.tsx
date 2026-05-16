@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { OnboardingChecklist } from "@/components/dashboard/OnboardingChecklist";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -16,7 +17,7 @@ export default async function DashboardPage() {
   const service = createServiceClient();
   const { data: agent } = await service
     .from("agents")
-    .select("id, name, role")
+    .select("id, name, role, bio, phone, avatar_url")
     .eq("id", user.id)
     .single();
 
@@ -110,6 +111,22 @@ export default async function DashboardPage() {
           {new Date().toLocaleDateString("en-PH", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
         </p>
       </div>
+
+      {/* Onboarding checklist — only shown to newly approved agents */}
+      {agent.role === "agent" && (
+        <div className="mb-6">
+          <OnboardingChecklist
+            agent={{
+              id: agent.id,
+              bio: agent.bio ?? null,
+              phone: agent.phone ?? null,
+              avatar_url: agent.avatar_url ?? null,
+            }}
+            listingsCount={(activeCount ?? 0) + (soldCount ?? 0)}
+            inquiriesCount={totalInquiries ?? 0}
+          />
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
